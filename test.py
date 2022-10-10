@@ -1,83 +1,53 @@
+from colorama import Cursor
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 
-from datetime import datetime, timedelta
-from textwrap import dedent
-from airflow.providers.mongo.hooks.mongo import MongoHook
-# The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
 
-# Operators; we need this to operate!
-from airflow.operators.bash import BashOperator
+def test_conn():
+    print('TESTING CONNECTION !!!!!!')
+    mariadbhook = MySqlHook(mysql_conn_id='mariadb', schema='')
+    
+    mongo_pipeline = [
+        {
+            '$unwind': {
+                'path': '$metadata.participants'
+            }
+        }, {
+            '$lookup': {
+                'from': 'summoner', 
+                'localField': 'metadata.participants', 
+                'foreignField': 'puuid', 
+                'as': 'test'
+            }
+        }
+    ]
+
+    conn = mariadbhook.get_conn()
+    cur = conn.cursor()
+    
+    cur.execute("""SELECT User, Host  FROM mysql.user;""")
+
+    data = cur.fetchall()
+    print(data)
+    
 with DAG(
-    'oioi',
-    # These args will get passed on to each operator
-    # You can override them on a per-task basis during operator initialization
+    dag_id='test',
     default_args={
         'depends_on_past': False,
-        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        # 'queue': 'bash_queue',
-        # 'pool': 'backfill',
-        # 'priority_weight': 10,
-        # 'end_date': datetime(2016, 1, 1),
-        # 'wait_for_downstream': False,
-        # 'sla': timedelta(hours=2),
-        # 'execution_timeout': timedelta(seconds=300),
-        # 'on_failure_callback': some_function,
-        # 'on_success_callback': some_other_function,
-        # 'on_retry_callback': another_function,
-        # 'sla_miss_callback': yet_another_function,
-        # 'trigger_rule': 'all_success'
     },
-    description='A simple tutorial DAG',
-    schedule_interval=timedelta(days=1),
-    start_date=datetime(2021, 1, 1),
+    start_date=datetime(2022, 7, 23),
     catchup=False,
-    tags=['batata'],
+    tags=['extract', 'TFT'],
 ) as dag:
-
-    # t1, t2 and t3 are examples of tasks created by instantiating operators
-    t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
-    )
-
-    t2 = BashOperator(
-        task_id='sleep',
-        depends_on_past=False,
-        bash_command='sleep 5',
-        retries=3,
-    )
-    t1.doc_md = dedent(
-        """\
-    #### Task Documentation
-    You can document your task using the attributes `doc_md` (markdown),
-    `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
-    rendered in the UI's Task Instance Details page.
-    ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
-
-    """
-    )
-
-    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG
-    dag.doc_md = """
-    This is a documentation placed anywhere
-    """  # otherwise, type it like this
-    templated_command = dedent(
-        """
-    {% for i in range(5) %}
-        echo "{{ ds }}"
-        echo "{{ macros.ds_add(ds, 7)}}"
-    {% endfor %}
-    """
-    )
-
-    t3 = BashOperator(
-        task_id='templated',
-        depends_on_past=False,
-        bash_command=templated_command,
-    )
-
-    t1 >> [t2, t3]
+    
+     t1 = PythonOperator(
+         task_id='teste',
+         python_callable=test_conn,
+         dag=dag
+     )
+     
+t1
